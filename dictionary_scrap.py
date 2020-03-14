@@ -3,6 +3,7 @@ from pathlib import Path
 import requests
 import pdb
 import os
+import threading
 
 website = "https://dictionary.com"
 listWords = "/list/"
@@ -40,7 +41,7 @@ def GetWords(url):
                         wordUrls.append(EnglishWord(link.text, link.get('href')))
     return wordUrls
 
-def DumpLettersToCsv(relativePathToUser, words):
+def DumpWordsToCsv(relativePathToUser, words):
     csvLines = list(map(lambda w: w.ToCsvLine(), words))
     filePath = os.path.join(Path.home(), relativePathToUser)
     with open(filePath, 'w', encoding="utf-8") as file:
@@ -50,16 +51,13 @@ def DumpLettersToCsv(relativePathToUser, words):
 
 # HTTP STATUS 200 means that the server accepted the URL.
 def UrlIsValid(url):
-    return requests.get(pageUrl).status_code == 200
+    return requests.get(url).status_code == 200
 
-# There are 26 letters in the alphabet, range is exclusive
-for i in range(1, 27):
-    letter = GetLetterInAlphabet(i)
+def ScrapeWordsForLetter(letter):
     wordsForLetter = []
     page = 0
 
     while True:
-
         pageUrl = "" + website + listWords + letter
 
         # Add page if applicable.
@@ -75,6 +73,19 @@ for i in range(1, 27):
             break
 
     print("Found " + str(len(wordsForLetter)) + " words that begin with " + letter)
-    print("Dumped letters to: " + DumpLettersToCsv(letter + ".csv", wordsForLetter))
+    print("Dumped words to: " + DumpWordsToCsv(letter + ".csv", wordsForLetter))
 
+if __name__ == '__main__':
+    threads = []
 
+    # There are 26 letters in the alphabet, range is exclusive
+    for i in range(1, 27):
+        letter = GetLetterInAlphabet(i)
+        thread = threading.Thread(target=ScrapeWordsForLetter, args=letter)
+        thread.start()
+        threads.append(thread)
+    
+    for t in threads:
+        t.join()
+
+        
