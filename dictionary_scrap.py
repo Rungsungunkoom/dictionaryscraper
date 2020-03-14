@@ -5,17 +5,56 @@ import pdb
 import os
 import threading
 
-website = "https://dictionary.com"
+website = "https://www.dictionary.com"
 listWords = "/list/"
 browseWord = "/browse/"
 
+def CsvSanitize(toSanitize):
+    return "\""+toSanitize.replace("\"", "\"\"\"")+"\""
+
 class EnglishWord:
-    def __init__(self, word, url):
-        self.word = word
-        self.url = url
+    def __init__(self, name, url):
+        if (name is None): 
+            self.name = "" 
+        else: 
+            self.name = name
+        if (url is None): 
+            self.url = "" 
+        else: 
+            self.url = url
+        self.ipa = ""
+        self.definitions = [""]
+        self.wordClass = ""
+
+    def ScrapeWordDetails(self):
+        html = ""
+        with requests.get(self.url) as webRequest:
+            html = webRequest.text
+
+        soup = BeautifulSoup(html, 'html.parser')
+
+        ipa = soup.find("div", {"class": "pron-spell-ipa-container"})
+        if ipa != None:
+            self.ipa = ipa.text
+    
+        wordClass = soup.find("span", {"class": "pos"})
+        if wordClass != None:
+            self.wordClass = wordClass.text
+
+        count = 1
+        while True:
+            definition = soup.find("div", {"value": str(count)})
+            if (definition is None):
+                break
+            self.definitions.append(definition.text)
+            count += 1
     
     def ToCsvLine(self):
-        return "" + self.word + "," + self.url + os.linesep
+        return "" + CsvSanitize(self.name) + "," + \
+        CsvSanitize(self.url) + "," + \
+        CsvSanitize(self.ipa) + "," + \
+        CsvSanitize(self.wordClass) + \
+        ",".join(map(lambda d: CsvSanitize(d), self.definitions)) + '\n'
 
     # TODO
     #def ToSqlInsert(self):
@@ -37,8 +76,9 @@ def GetWords(url):
                 
                 for link in soup.find_all('a'):
                     href = link.get('href')
-                    if href != None and browseWord in href:
+                    if href != None and (website+browseWord) in href:
                         wordUrls.append(EnglishWord(link.text, link.get('href')))
+
     return wordUrls
 
 def DumpWordsToCsv(relativePathToUser, words):
@@ -64,15 +104,19 @@ def ScrapeWordsForLetter(letter):
         pageUrl += ("/" + str(page)) if page > 0 else ""
 
         if (UrlIsValid(pageUrl)):
-            print("Visiting: " + pageUrl)
             wordsFromPage = GetWords(pageUrl)
             wordsForLetter += wordsFromPage
             page += 1
         else:
-            print("Reached the end of pages for letter: " + letter)
             break
 
     print("Found " + str(len(wordsForLetter)) + " words that begin with " + letter)
+
+    for i in range(0, len(wordsForLetter)):
+        word = wordsForLetter[i]
+        word.ScrapeWordDetails()
+        print("Scraped " + str(i) + "/" + str(len(wordsForLetter)) + " for " + letter + ": " + word.name)
+
     print("Dumped words to: " + DumpWordsToCsv(letter + ".csv", wordsForLetter))
 
 if __name__ == '__main__':
@@ -84,6 +128,7 @@ if __name__ == '__main__':
         thread = threading.Thread(target=ScrapeWordsForLetter, args=letter)
         thread.start()
         threads.append(thread)
+        print("Started scraping words for " + letter + "...")
     
     for t in threads:
         t.join()
