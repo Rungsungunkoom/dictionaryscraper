@@ -10,7 +10,12 @@ listWords = "/list/"
 browseWord = "/browse/"
 
 def CsvSanitize(toSanitize):
+    if toSanitize is None: return ""
     return "\""+toSanitize.replace("\"", "\"\"\"")+"\""
+
+def SqlSanitize(toSanitize):
+    if toSanitize is None: return ""
+    return toSanitize.replace('\'', '\'\'')
 
 class EnglishWord:
     def __init__(self, name, url):
@@ -23,7 +28,7 @@ class EnglishWord:
         else: 
             self.url = url
         self.ipa = ""
-        self.definitions = [""]
+        self.definitions = []
         self.wordClass = ""
 
     def ScrapeWordDetails(self):
@@ -38,6 +43,10 @@ class EnglishWord:
             self.ipa = ipa.text
     
         wordClass = soup.find("span", {"class": "pos"})
+
+        if wordClass is None:
+            wordClass = soup.find("span", {"class": "luna-pos"})
+
         if wordClass != None:
             self.wordClass = wordClass.text
 
@@ -56,10 +65,46 @@ class EnglishWord:
         CsvSanitize(self.wordClass) + \
         ",".join(map(lambda d: CsvSanitize(d), self.definitions)) + '\n'
 
-    # TODO
-    #def ToSqlInsert(self):
-        
+    def ToSqlLines(self):
+        # BEGIN/END transaction decreases the amount of time 
+        # to insert from 3 hours, to less than a second
+        insertStatements = "BEGIN TRANSACTION;\n"
 
+        with open("words_template.sql", 'r') as file:
+            insertsqlstatement = file.read()
+            insertsqlstatement = insertsqlstatement \
+                .replace("{word}", SqlSanitize(self.name)) \
+                .replace("{url}", SqlSanitize(self.url)) 
+            insertStatements += insertsqlstatement + '\n'
+
+        if self.wordClass != "":
+            with open("classes_template.sql", 'r') as file:
+                insertsqlstatement = file.read()
+                insertsqlstatement = insertsqlstatement \
+                    .replace("{class}", SqlSanitize(self.wordClass)) 
+                insertStatements += insertsqlstatement + '\n'
+
+        if self.ipa != "":
+            with open("pronounces_template.sql", 'r') as file:
+                insertsqlstatement = file.read()
+                insertsqlstatement = insertsqlstatement \
+                    .replace("{ipa}", SqlSanitize(self.ipa))
+                insertStatements += insertsqlstatement + '\n'
+
+        if len(self.definitions) > 0:
+            with open("definition_template.sql", 'r') as file:
+                defsqlstatement = file.read()
+                defCount = 1
+                for definition in self.definitions:
+                    temp = defsqlstatement
+                    temp = temp \
+                        .replace("{definition}", SqlSanitize(definition)) \
+                        .replace("1", str(defCount))
+                    defCount += 1
+                    insertStatements += temp + '\n'
+
+        return insertStatements + "END TRANSACTION;"
+        
 # Gets the letter in the alphabet.
 def GetLetterInAlphabet(number):
     if number < 1 or number > 26:
@@ -86,6 +131,14 @@ def DumpWordsToCsv(relativePathToUser, words):
     filePath = os.path.join(Path.home(), relativePathToUser)
     with open(filePath, 'w', encoding="utf-8") as file:
         for line in csvLines:
+            file.write(line)
+    return filePath
+
+def DumpWordsToSql(relativePathToUser, words):
+    sqlLines = list(map(lambda w: w.ToSqlLines(), words))
+    filePath = os.path.join(Path.home(), relativePathToUser)
+    with open(filePath, 'w', encoding="utf-8") as file:
+        for line in sqlLines:
             file.write(line)
     return filePath
 
@@ -118,6 +171,7 @@ def ScrapeWordsForLetter(letter):
         print("Scraped " + str(i) + "/" + str(len(wordsForLetter)) + " for " + letter + ": " + word.name)
 
     print("Dumped words to: " + DumpWordsToCsv(letter + ".csv", wordsForLetter))
+    print("Dumped words to: " + DumpWordsToSql(letter + ".sql", wordsForLetter))
 
 if __name__ == '__main__':
     threads = []
