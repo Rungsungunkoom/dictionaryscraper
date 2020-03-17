@@ -38,4 +38,4 @@ def getRandomWord(relativePathToUser, number, startswith, endswith):
 
 if __name__ == '__main__':
     result = getRandomWord("dictionary.db", 1, "", "")
-    requests.post(url, json={"username": "WordOfTheDay", "embeds": [json.loads(result)]})
+    requests.post(url, json={"username": "WordOfTheDay", "embeds": [json.loads(result[0][0])]})
