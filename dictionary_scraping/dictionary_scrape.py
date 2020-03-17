@@ -8,6 +8,7 @@ import threading
 website = "https://www.dictionary.com"
 listWords = "/list/"
 browseWord = "/browse/"
+templateLocation = "../sql_templates/"
 
 def CsvSanitize(toSanitize):
     if toSanitize is None: return ""
@@ -70,7 +71,7 @@ class EnglishWord:
         # to insert from 3 hours, to less than a second
         insertStatements = "BEGIN TRANSACTION;\n"
 
-        with open("words_template.sql", 'r') as file:
+        with open(templateLocation + "words_template.sql", 'r') as file:
             insertsqlstatement = file.read()
             insertsqlstatement = insertsqlstatement \
                 .replace("{word}", SqlSanitize(self.name)) \
@@ -78,21 +79,21 @@ class EnglishWord:
             insertStatements += insertsqlstatement + '\n'
 
         if self.wordClass != "":
-            with open("classes_template.sql", 'r') as file:
+            with open(templateLocation + "classes_template.sql", 'r') as file:
                 insertsqlstatement = file.read()
                 insertsqlstatement = insertsqlstatement \
                     .replace("{class}", SqlSanitize(self.wordClass)) 
                 insertStatements += insertsqlstatement + '\n'
 
         if self.ipa != "":
-            with open("pronounces_template.sql", 'r') as file:
+            with open(templateLocation + "pronounces_template.sql", 'r') as file:
                 insertsqlstatement = file.read()
                 insertsqlstatement = insertsqlstatement \
                     .replace("{ipa}", SqlSanitize(self.ipa))
                 insertStatements += insertsqlstatement + '\n'
 
         if len(self.definitions) > 0:
-            with open("definition_template.sql", 'r') as file:
+            with open(templateLocation + "definition_template.sql", 'r') as file:
                 defsqlstatement = file.read()
                 defCount = 1
                 for definition in self.definitions:

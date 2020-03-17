@@ -3,6 +3,8 @@ from sqlite3 import Error
 import os
 from pathlib import Path
 
+templateLocation = "../sql_templates/"
+
 def create_tables(relativePathToUser):
     conn = None
     try:
@@ -13,7 +15,7 @@ def create_tables(relativePathToUser):
 
         conn = sqlite3.connect(dbFile)
 
-        with open("tables.sql") as tables:
+        with open(templateLocation + "tables.sql") as tables:
             query = tables.read()
             sqlite3.complete_statement(query)
             conn.executescript(query)
@@ -33,7 +35,7 @@ def load_files(relativePathToUser):
         for i in range(0, 26):
             character = chr(ord('a') + i)
             print("Running " + character + ".sql...")
-            with open(os.path.join(Path.home(), character + ".sql..."), 'r', encoding="utf-8") as alphabetSql:
+            with open(os.path.join(Path.home(), character + ".sql"), 'r', encoding="utf-8") as alphabetSql:
                 query = alphabetSql.read()
                 sqlite3.complete_statement(query)
                 conn.executescript(query)
