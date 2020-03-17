@@ -7,7 +7,7 @@ from sqlite3 import Error
 import json
 
 url = os.getenv('DISCORD_WEBHOOK')
-templateLocation = "../sql_templates/"
+templateLocation = "sql_templates/"
 
 def getRandomWord(relativePathToUser, number, startswith, endswith):
     conn = None
