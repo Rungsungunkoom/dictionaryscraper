@@ -36,6 +36,46 @@ def getRandomWord(relativePathToUser, number, startswith, endswith):
 
     return result
 
+def getWordOfTheDay(relativePathToUser, guild):
+    conn = None
+    result = None
+
+    try:
+        dbFile = os.path.join(Path.home(), relativePathToUser)
+        conn = sqlite3.connect(dbFile)
+        cur = conn.cursor()
+
+        # Get word of the day that hasn't been shared in this guild yet.
+        with open(templateLocation + "wotd_random_word_id.sql") as word:
+            query = word.read()
+            sqlite3.complete_statement(query)
+            cur.execute(query, (guild,))
+            record = cur.fetchall()
+            result = record[0][0]
+
+        # Record this word for this guild, so that it doesn't show up again.
+        with open(templateLocation + "wotd_log.sql") as word:
+            query = word.read()
+            sqlite3.complete_statement(query)
+            cur.execute(query, (result, guild))
+            conn.commit()
+
+        # Query the data for the word and project in JSON so that Discord can display it.
+        with open(templateLocation + "wotd_random_word.sql") as word:
+            query = word.read()
+            sqlite3.complete_statement(query)
+            cur.execute(query, (result,))
+            record = cur.fetchall()
+            result = record
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+    return result
+
 if __name__ == '__main__':
-    result = getRandomWord("dictionary.db", 1, "", "")
+    guild = os.getenv('DISCORD_GUILD')
+    result = getWordOfTheDay("dictionary.db", guild)
     requests.post(url, json={"username": "WordOfTheDay", "embeds": [json.loads(result[0][0])]})

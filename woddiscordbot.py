@@ -1,8 +1,6 @@
 import os
 import discord
 import asyncio
-import pdb
-import schedule
 import wordquery
 import json
 from discord_argparse import ArgumentConverter, OptionalArgument, RequiredArgument

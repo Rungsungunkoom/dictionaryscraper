@@ -1,0 +1,1 @@
+INSERT INTO wotdlogs(wordid, guild) VALUES (?, ?)
